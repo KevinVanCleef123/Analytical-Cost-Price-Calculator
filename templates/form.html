@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lab Cost Calculator</title>
+    <style>
+        table, td, th {
+            border: 1px solid black;
+            padding: 4px;
+        }
+        table {
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lab Cost Calculator</h1>
+    <form id="costForm">
+        <label>Location: <input name="Location" required></label><br>
+        <label>Method Name: <input name="Mthd_Name" required></label><br>
+        <label>Average Technician Cost: <input name="Avg_Cost_Tech" required></label><br>
+        <label>Average FTE Hours: <input name="Avg_Cont_Hrs" required></label><br>
+        <label>Total Tests (Method): <input name="Ttl_Tests_Mthd_Year" required></label><br>
+        <label>Total Tests (Lab): <input name="Ttl_Tests_Lab_Year" required></label><br>
+        <label>Active Work Time per Run (min): <input name="Actv_Wrk_Tm_Run" required></label><br>
+        <label>Samples per Run: <input name="Smpls_Run" required></label><br>
+        <label>Wait Time: <input name="Wait_Time" required></label><br>
+        <label>Equipment Write-off: <input name="Eqpmnt_Wrt_off" required></label><br>
+        <label>Internal Maintenance Time (min): <input name="Int_Mnt_Tm" required></label><br>
+        <label>External Maintenance Cost: <input name="Ext_Mnt_Cst" required></label><br><br>
+
+        <h3>Equipment List</h3>
+        <table id="equipmentTable">
+            <tr><th>Name</th><th>Price</th><th>Exclusive (true/false)</th><th>Action</th></tr>
+        </table>
+        <button type="button" onclick="addEquipment()">Add Equipment</button><br><br>
+
+        <h3>Material List</h3>
+        <table id="materialTable">
+            <tr><th>Name</th><th>Price</th><th>Unit</th><th>Type</th><th>Action</th></tr>
+        </table>
+        <button type="button" onclick="addMaterial()">Add Material</button><br><br>
+
+        <button type="button" onclick="submitForm()">Execute</button>
+    </form>
+
+    <div id="result"></div>
+
+<script>
+    function addEquipment() {
+        let row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input></td>
+            <td><input></td>
+            <td><input></td>
+            <td><button onclick="this.parentElement.parentElement.remove()">Remove</button></td>`;
+        document.getElementById('equipmentTable').appendChild(row);
+    }
+
+    function addMaterial() {
+        let row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input></td>
+            <td><input></td>
+            <td><input></td>
+            <td>
+                <select>
+                    <option>Reusable</option>
+                    <option>Reagent</option>
+                    <option>Material</option>
+                </select>
+            </td>
+            <td><button onclick="this.parentElement.parentElement.remove()">Remove</button></td>`;
+        document.getElementById('materialTable').appendChild(row);
+    }
+
+    function submitForm() {
+        const formData = Object.fromEntries(new FormData(document.getElementById("costForm")).entries());
+
+        const equipment = Array.from(document.querySelectorAll("#equipmentTable tr"))
+            .slice(1)
+            .map(row => {
+                const cells = row.querySelectorAll("input");
+                return {
+                    name: cells[0].value,
+                    price: cells[1].value,
+                    exclusive: cells[2].value.toLowerCase() === "true"
+                };
+            });
+
+        const materials = Array.from(document.querySelectorAll("#materialTable tr"))
+            .slice(1)
+            .map(row => {
+                const cells = row.querySelectorAll("td");
+                return {
+                    name: cells[0].querySelector("input").value,
+                    price: cells[1].querySelector("input").value,
+                    unit: cells[2].querySelector("input").value,
+                    type: cells[3].querySelector("select").value
+                };
+            });
+
+        const data = { ...formData, equipment, materials };
+
+        fetch('/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(res => res.json())
+          .then(json => {
+              let output = `<h3>--- Final Summary ---</h3>`;
+              output += `<p>Total Cost Price: ${json["Total Cost Price"]}</p>`;
+              Object.entries(json["Shares"]).forEach(([key, val]) => {
+                  output += `<p>${key}: ${val}%</p>`;
+              });
+              document.getElementById("result").innerHTML = output;
+          });
+    }
+</script>
+</body>
+</html>
